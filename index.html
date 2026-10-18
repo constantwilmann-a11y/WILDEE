@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WILDEE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fond: #F1F5F8;
+    --encre: #12263A;
+    --discret: #5B6B7A;
+    --surface: #FFFFFF;
+    --trait: #D3DCE4;
+    --accent: #F2B01E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--encre);
+    font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
+  h1 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(3rem, 12vw, 5.5rem);
+    line-height: 0.95;
+    margin: 0 0 12px;
+    letter-spacing: -0.03em;
+  }
+  .promesse { color: var(--discret); margin: 0 0 32px; max-width: 46ch; }
+  label { display: block; font-weight: 600; margin-bottom: 8px; }
+  textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 14px;
+    border: 2px solid var(--trait);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--encre);
+    font: inherit;
+    resize: vertical;
+  }
+  textarea:focus, button:focus-visible { outline: 3px solid var(--encre); outline-offset: 2px; }
+  button {
+    margin-top: 14px;
+    padding: 14px 26px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--encre);
+    font: 700 1rem system-ui, sans-serif;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: wait; }
+  button.secondaire { background: transparent; border: 2px solid var(--encre); padding: 8px 16px; margin: 0 0 12px; }
+  #statut { margin-top: 20px; color: var(--discret); }
+  #erreur { margin-top: 20px; padding: 14px; border-left: 4px solid #B3261E; background: var(--surface); }
+  #resultat { margin-top: 36px; }
+  #texte {
+    white-space: pre-wrap;
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>WILDEE</h1>
+  <p class="promesse">Décris ton produit. Plusieurs propositions sont comparées, et tu reçois la meilleure : fiche produit, angles publicitaires et textes de pub.</p>
+
+  <label for="produit">Ton produit</label>
+  <textarea id="produit" placeholder="Ex : lampe de bureau LED rechargeable, pliable, 3 intensités, 29 € — pour les étudiants et le télétravail"></textarea>
+  <button id="go">Générer ma fiche et mes pubs</button>
+
+  <p id="statut" hidden>Les propositions sont en cours de comparaison. Compte environ 30 secondes.</p>
+  <div id="erreur" hidden></div>
+
+  <section id="resultat" hidden>
+    <button class="secondaire" id="copier">Copier le résultat</button>
+    <div id="texte"></div>
+  </section>
+</main>
+
+<script>
+  const go = document.getElementById("go");
+  const statut = document.getElementById("statut");
+  const erreur = document.getElementById("erreur");
+  const resultat = document.getElementById("resultat");
+  const texte = document.getElementById("texte");
+  const copier = document.getElementById("copier");
+
+  go.addEventListener("click", async () => {
+    const produit = document.getElementById("produit").value.trim();
+    erreur.hidden = true;
+    resultat.hidden = true;
+
+    if (produit.length < 3) {
+      erreur.textContent = "Décris ton produit en une ou deux phrases avant de lancer la génération.";
+      erreur.hidden = false;
+      return;
+    }
+
+    go.disabled = true;
+    statut.hidden = false;
+
+    try {
+      const r = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ produit })
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Erreur inconnue");
+      texte.textContent = data.resultat;
+      resultat.hidden = false;
+    } catch (e) {
+      erreur.textContent = "La génération a échoué : " + e.message + ". Réessaie dans une minute, et si le message revient, copie-le-moi.";
+      erreur.hidden = false;
+    } finally {
+      go.disabled = false;
+      statut.hidden = true;
+    }
+  });
+
+  copier.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(texte.textContent);
+    copier.textContent = "Copié";
+    setTimeout(() => (copier.textContent = "Copier le résultat"), 1500);
+  });
+</script>
+</body>
+</html>
