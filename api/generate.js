@@ -90,7 +90,7 @@ Mission : compare ces propositions, garde le meilleur de chacune (les accroches 
 Vérifie que chaque affirmation figure bien dans la description du produit et supprime les autres.
 Garde exactement la même structure (FICHE PRODUIT, 3 ANGLES PUBLICITAIRES, TEXTES DE PUB, À VÉRIFIER AVEC TON FOURNISSEUR).
 Écris en texte simple, sans Markdown, et commence directement par "FICHE PRODUIT".
-Termine par "POURQUOI CES CHOIX" en 2 phrases maximum.`;
+Termine par "POURQUOI CES CHOIX" en 2 phrases maximum, factuelles (ce que tu as retenu et supprimé), sans formule publicitaire ni auto-félicitation.`;
 
     const resultat = await demander(arbitrage, 0.3);
     return res.status(200).json({ resultat });
