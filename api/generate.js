@@ -1,25 +1,44 @@
-// WILDEE - version 1
+// WILDEE - version 1.1
 // 3 brouillons générés avec des "styles" différents, puis une étape d'arbitrage
 // qui garde le meilleur de chacun. La clé reste secrète côté serveur.
+// Si un modèle est surchargé, on passe automatiquement au suivant.
 
-const MODEL = "gemini-3.5-flash"; // si ce modèle pose problème : "gemini-3.1-flash-lite"
-const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const MODELES = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"];
+const adresse = (modele) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent`;
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function demander(prompt, temperature) {
-  const r = await fetch(URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": process.env.GEMINI_API_KEY
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature }
-    })
-  });
-  const data = await r.json();
-  if (!r.ok) throw new Error(data?.error?.message || "Erreur côté Gemini");
-  return (data?.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+  let derniereErreur = "Erreur côté Gemini";
+
+  for (const modele of MODELES) {
+    const r = await fetch(adresse(modele), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature }
+      })
+    });
+    const data = await r.json().catch(() => ({}));
+
+    if (r.ok) {
+      return (data?.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+    }
+
+    derniereErreur = data?.error?.message || "Erreur côté Gemini";
+    // Surcharge, quota ou modèle introuvable : on essaie le modèle suivant
+    if ([404, 429, 500, 503].includes(r.status)) {
+      await pause(800);
+      continue;
+    }
+    // Autre erreur (clé invalide, requête refusée...) : inutile d'insister
+    throw new Error(derniereErreur);
+  }
+  throw new Error(derniereErreur);
 }
 
 module.exports = async (req, res) => {
