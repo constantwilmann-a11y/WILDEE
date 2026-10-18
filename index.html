@@ -37,6 +37,10 @@
     border-radius: 10px; padding: 20px; }
   .video { margin-top: 40px; padding-top: 28px; border-top: 2px solid var(--trait); }
   .aide { color: var(--discret); margin: 0 0 4px; }
+  .montage { margin-top: 28px; padding-top: 24px; border-top: 2px solid var(--trait); }
+  #apercu, #videoFinale { display: block; width: 100%; max-width: 320px; aspect-ratio: 9 / 16; border-radius: 12px; margin-top: 16px; background: #000; }
+  .bouton { display: inline-block; margin-top: 14px; padding: 12px 22px; border-radius: 10px; background: var(--accent); color: var(--encre); font-weight: 700; text-decoration: none; }
+  input[type=file] { padding: 10px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -80,6 +84,23 @@
       <div class="bloc" id="resultatVideo" hidden>
         <button class="secondaire" data-copier="texte2">Copier le script</button>
         <div class="texte" id="texte2"></div>
+        <div class="montage">
+          <h2>Montage vidéo</h2>
+          <p class="aide">Ajoute 3 à 6 photos de ton produit : WILDEE les assemble en vidéo verticale (format TikTok et Reels) avec les textes ci-dessous. La durée est celle choisie plus haut.</p>
+          <label for="photos">Photos du produit (dans l'ordre de la vidéo)</label>
+          <input type="file" id="photos" accept="image/*" multiple>
+          <p class="aide" id="nbPhotos"></p>
+          <label for="textesEcran">Textes affichés (une ligne par photo, modifiables)</label>
+          <textarea id="textesEcran"></textarea>
+          <button id="goMontage">Créer la vidéo</button>
+          <p class="statut" id="statut3" hidden></p>
+          <div class="erreur" id="erreur3" hidden></div>
+          <canvas id="apercu" width="720" height="1280" hidden></canvas>
+          <div id="resultatMontage" hidden>
+            <video id="videoFinale" controls playsinline></video>
+            <a id="telecharger" class="bouton">Télécharger la vidéo</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -93,7 +114,7 @@
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || "Erreur inconnue");
-    return data.resultat;
+    return data;
   }
 
   function montrerErreur(id, e) {
@@ -111,7 +132,7 @@
     contexte = { produit, ton: $("ton").value, plateforme: $("plateforme").value, pays: $("pays").value.trim() || "France" };
     $("go").disabled = true; $("statut1").hidden = false;
     try {
-      contexte.fiche = await appeler("/api/generate", contexte);
+      contexte.fiche = (await appeler("/api/generate", contexte)).resultat;
       $("texte1").textContent = contexte.fiche;
       $("resultat").hidden = false;
     } catch (e) { montrerErreur("erreur1", e); }
@@ -122,11 +143,125 @@
     $("erreur2").hidden = true; $("resultatVideo").hidden = true;
     $("goVideo").disabled = true; $("statut2").hidden = false;
     try {
-      const script = await appeler("/api/video", { ...contexte, angle: $("angle").value, duree: $("duree").value });
-      $("texte2").textContent = script;
+      const data = await appeler("/api/video", { ...contexte, angle: $("angle").value, duree: $("duree").value });
+      $("texte2").textContent = data.resultat;
+      $("textesEcran").value = (data.textes || []).join("\n");
       $("resultatVideo").hidden = false;
     } catch (e) { montrerErreur("erreur2", e); }
     finally { $("goVideo").disabled = false; $("statut2").hidden = true; }
+  });
+
+  // ---------- Montage vidéo (tout se passe dans le navigateur) ----------
+  const L = 720, H = 1280, FPS = 30, FONDU = 350;
+  const FORMATS = [["video/mp4;codecs=avc1", "mp4"], ["video/mp4", "mp4"], ["video/webm;codecs=vp9", "webm"], ["video/webm", "webm"]];
+
+  function chargerImage(fichier) {
+    return new Promise((ok, ko) => {
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = () => ko(new Error("impossible de lire la photo " + fichier.name));
+      img.src = URL.createObjectURL(fichier);
+    });
+  }
+
+  function decouper(ctx, texte, largeur) {
+    const lignes = []; let ligne = "";
+    for (const mot of texte.split(/\s+/)) {
+      const essai = ligne ? ligne + " " + mot : mot;
+      if (ctx.measureText(essai).width > largeur && ligne) { lignes.push(ligne); ligne = mot; } else ligne = essai;
+    }
+    if (ligne) lignes.push(ligne);
+    return lignes;
+  }
+
+  function dessinerPhoto(ctx, img, progression, sens, alpha) {
+    const zoom = sens ? 1.12 - 0.12 * progression : 1 + 0.12 * progression;
+    const s = Math.max(L / img.naturalWidth, H / img.naturalHeight) * zoom;
+    const w = img.naturalWidth * s, h = img.naturalHeight * s;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, (L - w) / 2, (H - h) / 2, w, h);
+    ctx.globalAlpha = 1;
+  }
+
+  function dessinerTexte(ctx, texte, alpha) {
+    if (!texte) return;
+    ctx.font = "800 54px 'Bricolage Grotesque', system-ui, sans-serif";
+    const lignes = decouper(ctx, texte, L - 160);
+    const hl = 66, hauteur = lignes.length * hl + 40, x = 60, largeur = L - 120, r = 24;
+    const y = H * 0.66 - hauteur / 2;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(18,38,58,0.8)";
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + largeur, y, x + largeur, y + hauteur, r);
+    ctx.arcTo(x + largeur, y + hauteur, x, y + hauteur, r);
+    ctx.arcTo(x, y + hauteur, x, y, r);
+    ctx.arcTo(x, y, x + largeur, y, r);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    lignes.forEach((l, k) => ctx.fillText(l, L / 2, y + 20 + hl * k + hl / 2));
+    ctx.globalAlpha = 1;
+  }
+
+  async function monter(images, textes, secondes, progression) {
+    const ctx = $("apercu").getContext("2d");
+    await document.fonts.load("800 54px 'Bricolage Grotesque'");
+    const format = window.MediaRecorder && FORMATS.find(([m]) => MediaRecorder.isTypeSupported(m));
+    if (!format) throw new Error("ce navigateur ne sait pas enregistrer de vidéo (utilise Safari ou Chrome à jour)");
+    const rec = new MediaRecorder($("apercu").captureStream(FPS), { mimeType: format[0], videoBitsPerSecond: 4000000 });
+    const morceaux = [];
+    rec.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
+    const arret = new Promise((ok) => (rec.onstop = ok));
+    const total = secondes * 1000, duree = total / images.length;
+    rec.start(250);
+    const debut = performance.now();
+    await new Promise((fini) => {
+      const image = (maintenant) => {
+        const t = Math.min(maintenant - debut, total);
+        const i = Math.min(images.length - 1, Math.floor(t / duree));
+        const ms = t - i * duree;
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, L, H);
+        if (i > 0 && ms < FONDU) dessinerPhoto(ctx, images[i - 1], 1, (i - 1) % 2, 1);
+        dessinerPhoto(ctx, images[i], ms / duree, i % 2, i > 0 ? Math.min(1, ms / FONDU) : 1);
+        dessinerTexte(ctx, textes[i], Math.min(1, ms / FONDU));
+        progression(t / total);
+        if (t < total) requestAnimationFrame(image); else fini();
+      };
+      requestAnimationFrame(image);
+    });
+    rec.stop(); await arret;
+    return { blob: new Blob(morceaux, { type: format[0].split(";")[0] }), ext: format[1] };
+  }
+
+  $("photos").addEventListener("change", () => {
+    const n = $("photos").files.length;
+    $("nbPhotos").textContent = n ? n + " photo(s) sélectionnée(s)" + (n > 6 ? " : seules les 6 premières seront utilisées" : "") : "";
+  });
+
+  $("goMontage").addEventListener("click", async () => {
+    const fichiers = [...$("photos").files].slice(0, 6);
+    $("erreur3").hidden = true; $("resultatMontage").hidden = true;
+    if (fichiers.length < 2) {
+      $("erreur3").textContent = "Ajoute au moins 2 photos de ton produit avant de lancer le montage.";
+      $("erreur3").hidden = false; return;
+    }
+    const textes = $("textesEcran").value.split("\n").map((l) => l.trim());
+    $("goMontage").disabled = true; $("statut3").hidden = false; $("apercu").hidden = false;
+    try {
+      const images = await Promise.all(fichiers.map(chargerImage));
+      const { blob, ext } = await monter(images, textes, Number($("duree").value), (p) => {
+        $("statut3").textContent = "Montage en cours : " + Math.round(p * 100) + " %. Reste sur cette page jusqu'à la fin.";
+      });
+      const url = URL.createObjectURL(blob);
+      $("videoFinale").src = url;
+      $("telecharger").href = url; $("telecharger").download = "wildee-video." + ext;
+      $("resultatMontage").hidden = false;
+    } catch (e) {
+      $("erreur3").textContent = "Le montage a échoué : " + e.message + ". Si le message revient, copie-le-moi.";
+      $("erreur3").hidden = false;
+    } finally {
+      $("goMontage").disabled = false; $("statut3").hidden = true; $("apercu").hidden = true;
+    }
   });
 
   document.querySelectorAll("[data-copier]").forEach((bouton) => {
