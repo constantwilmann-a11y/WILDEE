@@ -43,6 +43,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "Génère d'abord la fiche produit et les pubs" });
   }
 
+  const nb = duree === 30 ? 6 : 4;
   const prompt = `Tu es réalisateur de publicités vidéo courtes pour l'e-commerce, en français.
 Produit : ${produit}
 
@@ -58,15 +59,21 @@ RÈGLES STRICTES
 - La vidéo doit être compréhensible sans le son (texte à l'écran obligatoire).
 
 STRUCTURE À RESPECTER
-ACCROCHE (0 à 3 secondes) : ce qu'on voit et ce qu'on dit pour arrêter le scroll.
-SCÈNES : pour chaque scène, son numéro, sa durée, ce qu'on filme ou montre, le texte affiché à l'écran et la voix off. Le total doit faire ${duree} secondes.
+ACCROCHE (0 à 3 secondes) : ce qu'on voit et ce qu'on dit pour arrêter le scroll. L'accroche est la scène 1 : ne la répète pas dans les scènes suivantes.
+SCÈNES : pour chaque scène suivante, son numéro, sa durée, ce qu'on filme ou montre, le texte affiché à l'écran et la voix off. La voix off ne répète jamais mot pour mot le texte à l'écran : elle apporte une information en plus. Le total doit faire ${duree} secondes.
 FIN : appel à l'action et texte final à l'écran.
 AMBIANCE : style de musique et rythme du montage.
-VISUELS À PRÉPARER : la liste des photos et des plans courts à rassembler, et ceux à demander au fournisseur.`;
+VISUELS À PRÉPARER : la liste des photos et des plans courts à rassembler, et ceux à demander au fournisseur.
+TEXTES_ECRAN : écris exactement cette ligne, puis exactement ${nb} lignes en dessous, une par photo, dans l'ordre de la vidéo. Chaque ligne contient uniquement le texte court (8 mots maximum) à afficher sur cette photo ; la dernière ligne est l'appel à l'action.`;
 
   try {
-    const resultat = await demander(prompt, 0.7);
-    return res.status(200).json({ resultat });
+    const brut = await demander(prompt, 0.7);
+    const coupe = brut.indexOf("TEXTES_ECRAN");
+    const resultat = (coupe >= 0 ? brut.slice(0, coupe) : brut).trim();
+    const textes = coupe >= 0
+      ? brut.slice(coupe + 12).split("\n").map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim()).filter(Boolean).slice(0, 8)
+      : [];
+    return res.status(200).json({ resultat, textes });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
