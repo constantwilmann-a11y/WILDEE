@@ -92,6 +92,12 @@
           <p class="aide" id="nbPhotos"></p>
           <label for="textesEcran">Textes affichés (une ligne par photo, modifiables)</label>
           <textarea id="textesEcran"></textarea>
+          <div class="options">
+            <div><label for="fond">Arrière-plan</label>
+              <select id="fond"><option value="flou">Flou (style CapCut)</option><option value="degrade">Dégradé de couleur</option><option value="noir">Noir</option></select></div>
+            <div><label for="qualite">Qualité</label>
+              <select id="qualite"><option value="1080">Full HD (1080 × 1920)</option><option value="720">HD (720 × 1280, plus rapide)</option></select></div>
+          </div>
           <button id="goMontage">Créer la vidéo</button>
           <p class="statut" id="statut3" hidden></p>
           <div class="erreur" id="erreur3" hidden></div>
@@ -152,7 +158,8 @@
   });
 
   // ---------- Montage vidéo (tout se passe dans le navigateur) ----------
-  const L = 720, H = 1280, FPS = 30, FONDU = 350;
+  let L = 1080, H = 1920, K = 1.5;
+  const FPS = 30, FONDU = 400;
   const FORMATS = [["video/mp4;codecs=avc1", "mp4"], ["video/mp4", "mp4"], ["video/webm;codecs=vp9", "webm"], ["video/webm", "webm"]];
 
   function chargerImage(fichier) {
@@ -162,6 +169,16 @@
       img.onerror = () => ko(new Error("impossible de lire la photo " + fichier.name));
       img.src = URL.createObjectURL(fichier);
     });
+  }
+
+  function chemin(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   function decouper(ctx, texte, largeur) {
@@ -174,45 +191,94 @@
     return lignes;
   }
 
-  function dessinerPhoto(ctx, img, progression, sens, alpha) {
-    const zoom = sens ? 1.12 - 0.12 * progression : 1 + 0.12 * progression;
-    const s = Math.max(L / img.naturalWidth, H / img.naturalHeight) * zoom;
-    const w = img.naturalWidth * s, h = img.naturalHeight * s;
+  function redimensionner(source, largeur, hauteur) {
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(largeur)); c.height = Math.max(1, Math.round(hauteur));
+    const x = c.getContext("2d");
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.drawImage(source, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  // Arrière-plan fabriqué une seule fois par photo : flou (style CapCut), dégradé ou noir.
+  function fabriquerFond(img, mode) {
+    const c = document.createElement("canvas"); c.width = L; c.height = H;
+    const x = c.getContext("2d");
+    x.fillStyle = "#000"; x.fillRect(0, 0, L, H);
+    if (mode === "noir") return c;
+
+    // la photo remplit tout l'écran, puis on la réduit fortement pour obtenir un flou doux
+    const a = document.createElement("canvas"); a.width = L / 4; a.height = H / 4;
+    const ax = a.getContext("2d"); ax.imageSmoothingQuality = "high";
+    const s = Math.max(a.width / img.naturalWidth, a.height / img.naturalHeight);
+    ax.drawImage(img, (a.width - img.naturalWidth * s) / 2, (a.height - img.naturalHeight * s) / 2, img.naturalWidth * s, img.naturalHeight * s);
+    const petit = redimensionner(redimensionner(a, L / 16, H / 16), L / 32, H / 32);
+
+    if (mode === "degrade") {
+      const [r, g, b] = redimensionner(petit, 1, 1).getContext("2d").getImageData(0, 0, 1, 1).data;
+      const degrade = x.createLinearGradient(0, 0, 0, H);
+      degrade.addColorStop(0, `rgb(${r * 0.85 | 0},${g * 0.85 | 0},${b * 0.85 | 0})`);
+      degrade.addColorStop(1, `rgb(${r * 0.3 | 0},${g * 0.3 | 0},${b * 0.3 | 0})`);
+      x.fillStyle = degrade; x.fillRect(0, 0, L, H);
+      return c;
+    }
+
+    let flou = petit;
+    for (let k = 0; k < 3; k++) flou = redimensionner(flou, Math.min(L, flou.width * 4), Math.min(H, flou.height * 4));
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.drawImage(flou, 0, 0, L, H);
+    x.fillStyle = "rgba(0,0,0,0.28)"; x.fillRect(0, 0, L, H);
+    return c;
+  }
+
+  // Une scène : fond + photo entière (jamais rognée) avec coins arrondis, ombre et léger zoom.
+  function dessinerScene(ctx, fond, img, progression, sens, alpha, decalage) {
     ctx.globalAlpha = alpha;
-    ctx.drawImage(img, (L - w) / 2, (H - h) / 2, w, h);
+    ctx.drawImage(fond, 0, 0);
+    const base = Math.min((L - 80 * K) / img.naturalWidth, (H * 0.58) / img.naturalHeight);
+    const zoom = 1 + 0.06 * (sens ? 1 - progression : progression);
+    const w = img.naturalWidth * base * zoom, h = img.naturalHeight * base * zoom;
+    const x = (L - w) / 2, y = H * 0.4 - h / 2 + decalage;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 40 * K; ctx.shadowOffsetY = 16 * K;
+    ctx.fillStyle = "#fff"; chemin(ctx, x, y, w, h, 28 * K); ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.clip();
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
     ctx.globalAlpha = 1;
   }
 
-  function dessinerTexte(ctx, texte, alpha) {
+  function dessinerTexte(ctx, texte, p) {
     if (!texte) return;
-    ctx.font = "800 54px 'Bricolage Grotesque', system-ui, sans-serif";
-    const lignes = decouper(ctx, texte, L - 160);
-    const hl = 66, hauteur = lignes.length * hl + 40, x = 60, largeur = L - 120, r = 24;
-    const y = H * 0.66 - hauteur / 2;
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = "rgba(18,38,58,0.8)";
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + largeur, y, x + largeur, y + hauteur, r);
-    ctx.arcTo(x + largeur, y + hauteur, x, y + hauteur, r);
-    ctx.arcTo(x, y + hauteur, x, y, r);
-    ctx.arcTo(x, y, x + largeur, y, r);
-    ctx.closePath(); ctx.fill();
+    ctx.font = `800 ${54 * K}px 'Bricolage Grotesque', system-ui, sans-serif`;
+    const lignes = decouper(ctx, texte, L - 160 * K);
+    const hl = 66 * K, hauteur = lignes.length * hl + 40 * K, x = 60 * K, largeur = L - 120 * K;
+    const yc = H * 0.76, y = yc - hauteur / 2, sc = 0.9 + 0.1 * p;
+    ctx.save();
+    ctx.globalAlpha = p;
+    ctx.translate(L / 2, yc); ctx.scale(sc, sc); ctx.translate(-L / 2, -yc);
+    ctx.fillStyle = "rgba(18,38,58,0.88)"; chemin(ctx, x, y, largeur, hauteur, 24 * K); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    lignes.forEach((l, k) => ctx.fillText(l, L / 2, y + 20 + hl * k + hl / 2));
-    ctx.globalAlpha = 1;
+    lignes.forEach((l, k) => ctx.fillText(l, L / 2, y + 20 * K + hl * k + hl / 2));
+    ctx.restore();
   }
 
   async function monter(images, textes, secondes, progression) {
-    const ctx = $("apercu").getContext("2d");
+    const hd = $("qualite").value === "720";
+    L = hd ? 720 : 1080; H = hd ? 1280 : 1920; K = L / 720;
+    const canvas = $("apercu"); canvas.width = L; canvas.height = H;
+    const ctx = canvas.getContext("2d");
     await document.fonts.load("800 54px 'Bricolage Grotesque'");
+    const fonds = images.map((img) => fabriquerFond(img, $("fond").value));
     const format = window.MediaRecorder && FORMATS.find(([m]) => MediaRecorder.isTypeSupported(m));
     if (!format) throw new Error("ce navigateur ne sait pas enregistrer de vidéo (utilise Safari ou Chrome à jour)");
-    const rec = new MediaRecorder($("apercu").captureStream(FPS), { mimeType: format[0], videoBitsPerSecond: 4000000 });
+    const rec = new MediaRecorder(canvas.captureStream(FPS), { mimeType: format[0], videoBitsPerSecond: hd ? 4000000 : 8000000 });
     const morceaux = [];
     rec.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
     const arret = new Promise((ok) => (rec.onstop = ok));
     const total = secondes * 1000, duree = total / images.length;
+    const scene = (i, prog, alpha, decalage) => dessinerScene(ctx, fonds[i], images[i], prog, i % 2, alpha, decalage);
     rec.start(250);
     const debut = performance.now();
     await new Promise((fini) => {
@@ -221,8 +287,11 @@
         const i = Math.min(images.length - 1, Math.floor(t / duree));
         const ms = t - i * duree;
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, L, H);
-        if (i > 0 && ms < FONDU) dessinerPhoto(ctx, images[i - 1], 1, (i - 1) % 2, 1);
-        dessinerPhoto(ctx, images[i], ms / duree, i % 2, i > 0 ? Math.min(1, ms / FONDU) : 1);
+        if (i > 0 && ms < FONDU) {
+          const a = ms / FONDU;
+          scene(i - 1, 1, 1, 0);
+          scene(i, ms / duree, a, (1 - a) * 40 * K);
+        } else scene(i, ms / duree, 1, 0);
         dessinerTexte(ctx, textes[i], Math.min(1, ms / FONDU));
         progression(t / total);
         if (t < total) requestAnimationFrame(image); else fini();
