@@ -28,6 +28,9 @@ async function demander(prompt, temperature) {
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
+  if (process.env.ACCES_CODE && req.headers["x-code"] !== process.env.ACCES_CODE) {
+    return res.status(401).json({ error: "Code d'accès requis ou incorrect" });
+  }
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: "La clé GEMINI_API_KEY est absente dans Vercel" });
   }
