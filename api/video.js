@@ -42,6 +42,10 @@ module.exports = async (req, res) => {
   const duree = [15, 30].includes(Number(corps.duree)) ? Number(corps.duree) : 15;
   const ton = String(corps.ton || "Professionnel").slice(0, 40);
   const plateforme = String(corps.plateforme || "Facebook / Instagram").slice(0, 40);
+  const style = ["Question", "Problème puis solution", "Démonstration", "Fait ou chiffre"].includes(corps.style) ? corps.style : "Auto";
+  const commande = String(corps.commande || "").slice(0, 60);
+  const paiement = String(corps.paiement || "").slice(0, 60);
+  const infosVente = (style !== "Auto" ? ` Style d'accroche imposé : ${style}.` : "") + (commande ? ` Le client commande : ${commande}.` : "") + (paiement ? ` Mode de paiement : ${paiement}.` : "");
   if (produit.length < 3 || fiche.length < 20) {
     return res.status(400).json({ error: "Génère d'abord la fiche produit et les pubs" });
   }
@@ -53,13 +57,14 @@ Produit : ${produit}
 Voici la fiche et les angles déjà validés :
 ${fiche}
 
-Écris le script d'une vidéo publicitaire de ${duree} secondes, au format vertical 9:16, pour ${plateforme}, basée sur l'ANGLE ${angle}. Ton : ${ton}.
+Écris le script d'une vidéo publicitaire de ${duree} secondes, au format vertical 9:16, pour ${plateforme}, basée sur l'ANGLE ${angle}. Ton : ${ton}.${infosVente}
 
 RÈGLES STRICTES
 - Utilise uniquement les informations de la description du produit. N'invente aucune caractéristique, garantie ou résultat chiffré.
 - Écris en texte simple : pas de Markdown (pas de #, pas de **). Les titres de section sont en MAJUSCULES.
 - Commence directement par "ACCROCHE", sans phrase d'introduction.
 - La vidéo doit être compréhensible sans le son (texte à l'écran obligatoire).
+- Si le client commande sur WhatsApp, l'appel à l'action l'invite à écrire sur WhatsApp, sans inventer de numéro. Mentionne le paiement à la livraison seulement si le mode de paiement l'indique.
 
 STRUCTURE À RESPECTER
 ACCROCHE (0 à 3 secondes) : ce qu'on voit et ce qu'on dit pour arrêter le scroll. L'accroche est la scène 1 : ne la répète pas dans les scènes suivantes.
