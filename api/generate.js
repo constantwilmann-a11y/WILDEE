@@ -52,7 +52,10 @@ module.exports = async (req, res) => {
 
   const corps = req.body || {};
   const produit = String(corps.produit || "").trim().slice(0, 1500);
-  const pays = String(corps.pays || "France").trim().slice(0, 60) || "France";
+  const pays = String(corps.pays || "").trim().slice(0, 60) || "Afrique francophone";
+  const devise = String(corps.devise || "").trim().slice(0, 30);
+  const paiement = String(corps.paiement || "").trim().slice(0, 60);
+  const commande = String(corps.commande || "").trim().slice(0, 60);
   const nomTon = TONS[corps.ton] ? corps.ton : "Professionnel";
   const nomPlateforme = PLATEFORMES[corps.plateforme] ? corps.plateforme : "Facebook / Instagram";
   if (produit.length < 3) return res.status(400).json({ error: "Description du produit manquante" });
@@ -61,11 +64,15 @@ module.exports = async (req, res) => {
 Produit : ${produit}
 Marché visé : ${pays}. Ton à adopter : ${TONS[nomTon]}.
 Plateforme publicitaire : ${nomPlateforme}.
+Devise des prix : ${devise || "celle de la description"}. Mode de paiement : ${paiement || "non précisé"}. Le client commande : ${commande || "non précisé"}.
 
 RÈGLES STRICTES
 - Utilise uniquement les informations données dans la description du produit.
 - N'invente aucune caractéristique, garantie, certification, promotion, délai de livraison ou résultat chiffré.
 - Évite les superlatifs non prouvés ("le meilleur", "100 %", "garanti", "révolutionnaire") et toute promesse de santé.
+- Écris les prix avec la devise indiquée (par exemple 15 000 FCFA), sans les convertir.
+- Évoque le paiement à la livraison seulement si le mode de paiement l'indique, et invite à commander sur WhatsApp seulement si c'est le canal indiqué (sans inventer de numéro).
+- Utilise un français simple et courant, adapté au pays visé.
 - Écris en texte simple : pas de Markdown (pas de #, pas de **). Les titres de section sont en MAJUSCULES.
 - Commence directement par "FICHE PRODUIT", sans phrase d'introduction.
 
