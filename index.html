@@ -79,6 +79,18 @@
   .vide { text-align:center; padding:26px 10px; color:var(--muted); }
   .voile { position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:20px; background:rgba(21,21,43,.55); }
   .modale { max-width:380px; width:100%; margin:0; }
+  .outils, .groupe-btn { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  a.secondaire-lien { display:inline-block; padding:6px 13px; background:#fff; color:var(--ink); border:1px solid var(--champ); border-radius:12px; font:600 .9rem system-ui,sans-serif; text-decoration:none; }
+  a.secondaire-lien:hover { border-color:var(--ink); }
+  .lien-res { margin-top:18px; } .lien-res input { font-size:.9rem; }
+  #impression { display:none; }
+  @media print {
+    body > :not(#impression) { display:none !important; }
+    #impression { display:block !important; color:#000; font:11.5pt/1.5 Georgia,serif; }
+    #impression h1 { font-size:20pt; margin:0 0 14pt; }
+    #impression h2 { font-size:13pt; margin:16pt 0 6pt; padding-bottom:3pt; border-bottom:1px solid #999; }
+    #impression .corps { white-space:pre-wrap; }
+  }
   [hidden] { display:none !important; }
   @media (max-width:700px) {
     .entete { justify-content:flex-start; }
@@ -98,6 +110,7 @@
   </div>
   <nav class="onglets" id="onglets" aria-label="Navigation">
     <button data-vue="creer" class="actif"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/></svg>Créer</button>
+    <button data-vue="wa"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>WhatsApp</button>
     <button data-vue="calcul"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>Rentabilité</button>
     <button data-vue="histo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Historique</button>
   </nav>
@@ -124,7 +137,13 @@
         <div><label for="plateforme">Plateforme de pub</label>
           <select id="plateforme"><option>Facebook / Instagram</option><option>TikTok</option><option>Google Ads</option></select></div>
         <div><label for="pays">Pays visé</label>
-          <input id="pays" value="France"></div>
+          <input id="pays" placeholder="Ex : Côte d'Ivoire, Sénégal"></div>
+        <div><label for="devise">Devise des prix</label>
+          <select id="devise"><option>FCFA (XOF)</option><option>FCFA (XAF)</option><option>MAD (dirham)</option><option>NGN (naira)</option><option>GHS (cedi)</option><option>EUR (euro)</option><option>USD (dollar)</option></select></div>
+        <div><label for="paiement">Paiement du client</label>
+          <select id="paiement"><option>À la livraison</option><option>En ligne (Mobile Money, carte)</option><option>À la livraison ou en ligne</option></select></div>
+        <div><label for="commande">Le client commande</label>
+          <select id="commande"><option>Sur WhatsApp</option><option>Sur ma boutique en ligne</option><option>Par appel ou message</option></select></div>
       </div>
       <button id="go">Générer mes pubs</button>
       <p class="statut" id="statut1" hidden></p>
@@ -133,9 +152,20 @@
 
     <section id="resultat" hidden>
       <div class="panneau">
-        <div class="titre-ligne"><h2>Tes pubs</h2><button class="secondaire" data-copier="texte1">Tout copier</button></div>
+        <div class="titre-ligne"><h2>Tes pubs</h2><div class="groupe-btn"><button class="secondaire" data-copier="texte1">Tout copier</button><button class="secondaire" id="btnNotion">Copier pour Notion</button><button class="secondaire" id="btnPDF">Exporter en PDF</button></div></div>
         <div id="cartesFiche"></div>
         <div id="texte1" hidden></div>
+
+        <div class="montage">
+          <h3>Variantes pour tes tests A/B</h3>
+          <p class="aide">5 versions différentes d'un angle (question, problème puis solution, bénéfice, conversation, urgence honnête) à comparer en campagne.</p>
+          <div class="options"><div><label for="angleVar">Angle</label>
+            <select id="angleVar"><option value="1">Angle 1</option><option value="2">Angle 2</option><option value="3">Angle 3</option></select></div></div>
+          <button id="goVar">Générer 5 variantes</button>
+          <p class="statut" id="statutVar" hidden></p>
+          <div class="erreur" id="erreurVar" hidden></div>
+          <div id="cartesVar"></div>
+        </div>
       </div>
 
       <div class="panneau">
@@ -146,6 +176,8 @@
             <select id="angle"><option value="1">Angle 1</option><option value="2">Angle 2</option><option value="3">Angle 3</option></select></div>
           <div><label for="duree">Durée</label>
             <select id="duree"><option value="15">15 secondes</option><option value="30">30 secondes</option></select></div>
+          <div><label for="styleVideo">Style d'accroche</label>
+            <select id="styleVideo"><option>Auto</option><option>Question</option><option>Problème puis solution</option><option>Démonstration</option><option>Fait ou chiffre</option></select></div>
         </div>
         <button id="goVideo">Créer le script vidéo</button>
         <p class="statut" id="statut2" hidden></p>
@@ -153,7 +185,8 @@
 
         <div id="resultatVideo" hidden>
           <div class="titre-ligne" style="margin-top:22px"><h3>Ton script</h3><button class="secondaire" data-copier="texte2">Copier le script</button></div>
-          <div class="texte" id="texte2"></div>
+          <div id="cartesScript"></div>
+          <div id="texte2" hidden></div>
 
           <div class="montage">
             <h2>Montage vidéo</h2>
@@ -183,27 +216,74 @@
     </section>
   </section>
 
+  <section class="vue" id="vue-wa" hidden>
+    <h2 class="titre-page">WhatsApp</h2>
+    <p class="aide">Des messages prêts à envoyer, et un lien qui ouvre WhatsApp avec la commande déjà écrite.</p>
+    <div class="panneau">
+      <h2>Messages à envoyer</h2>
+      <p class="aide">À utiliser avec des personnes qui t'ont déjà écrit ou qui ont accepté d'être contactées : WhatsApp peut bloquer les comptes qui envoient des messages non sollicités.</p>
+      <label for="waType">Type de message</label>
+      <select id="waType"><option>Première réponse à un client intéressé</option><option>Présenter l'offre et conclure la vente</option><option>Relance (le client n'a pas répondu)</option><option>Confirmation de commande avant livraison (pour limiter les refus)</option><option>Message avant le passage du livreur</option><option>Demande d'avis après livraison</option></select>
+      <label for="waProduit" style="margin-top:14px">Produit</label>
+      <textarea id="waProduit" style="min-height:90px" placeholder="Décris ton produit, comme dans l'onglet Créer"></textarea>
+      <div class="options">
+        <div><label for="waBoutique">Nom de ta boutique (facultatif)</label><input id="waBoutique"></div>
+        <div><label for="waLien">Lien de paiement (facultatif)</label><input id="waLien" placeholder="https://…"></div>
+      </div>
+      <label for="waInfos" style="margin-top:14px">Infos utiles (livraison, délais, offre…)</label>
+      <textarea id="waInfos" style="min-height:80px" placeholder="Ex : livraison en 24 h à Abidjan, paiement à la réception"></textarea>
+      <button id="goWa">Générer 3 versions</button>
+      <p class="statut" id="statutWa" hidden></p>
+      <div class="erreur" id="erreurWa" hidden></div>
+      <div id="cartesWa"></div>
+    </div>
+    <div class="panneau">
+      <h2>Lien de commande WhatsApp</h2>
+      <p class="aide">Ton client clique : WhatsApp s'ouvre avec le message de commande déjà écrit. À mettre dans ta bio, ta pub ou ta page.</p>
+      <div class="options">
+        <div><label for="waNumero">Ton numéro WhatsApp (format international)</label><input id="waNumero" inputmode="tel" placeholder="2250102030405"></div>
+        <div><label for="waNomProduit">Nom du produit</label><input id="waNomProduit"></div>
+        <div><label for="waPrixTxt">Prix affiché</label><input id="waPrixTxt" placeholder="15 000 FCFA"></div>
+      </div>
+      <button id="goLien">Créer le lien</button>
+      <div class="erreur" id="erreurLien" hidden></div>
+      <div class="lien-res" id="lienRes" hidden>
+        <label for="lienTexte">Ton lien</label>
+        <input id="lienTexte" readonly>
+        <div class="groupe-btn" style="margin-top:10px"><button class="secondaire" id="copierLien">Copier le lien</button><a class="secondaire-lien" id="lienTest" target="_blank" rel="noopener">Tester</a></div>
+      </div>
+    </div>
+  </section>
+
   <section class="vue" id="vue-calcul" hidden>
     <h2 class="titre-page">Ce produit est-il rentable ?</h2>
     <p class="aide">Vérifie ta marge avant de lancer une pub. Les résultats se mettent à jour tout seuls.</p>
     <div class="panneau">
       <div class="grille">
-        <div><label for="cPrix">Prix de vente TTC (€)</label><input id="cPrix" type="number" inputmode="decimal" step="0.01" value="29.90"></div>
-        <div><label for="cAchat">Coût d'achat du produit (€)</label><input id="cAchat" type="number" inputmode="decimal" step="0.01" value="9"></div>
-        <div><label for="cLiv">Livraison à ta charge (€)</label><input id="cLiv" type="number" inputmode="decimal" step="0.01" value="3"></div>
-        <div><label for="cTva">TVA (%), 0 si pas de TVA</label><input id="cTva" type="number" inputmode="decimal" step="0.1" value="20"></div>
-        <div><label for="cFrais">Frais de paiement (%)</label><input id="cFrais" type="number" inputmode="decimal" step="0.1" value="2.9"></div>
-        <div><label for="cFixe">Frais fixes par paiement (€)</label><input id="cFixe" type="number" inputmode="decimal" step="0.01" value="0.30"></div>
-        <div><label for="cBudget">Budget de test pub (€)</label><input id="cBudget" type="number" inputmode="decimal" step="1" value="50"></div>
+        <div><label for="cDevise">Devise</label>
+          <select id="cDevise"><option value="XOF">FCFA (XOF)</option><option value="XAF">FCFA (XAF)</option><option value="MAD">Dirham (MAD)</option><option value="NGN">Naira (NGN)</option><option value="GHS">Cedi (GHS)</option><option value="EUR">Euro (EUR)</option><option value="USD">Dollar (USD)</option></select></div>
+        <div><label for="cMode">Paiement du client</label>
+          <select id="cMode"><option value="livraison">À la livraison</option><option value="ligne">En ligne (Mobile Money, carte)</option></select></div>
+        <div><label for="cPrix">Prix de vente</label><input id="cPrix" type="number" inputmode="decimal" step="any" value="15000"></div>
+        <div><label for="cAchat">Coût d'achat du produit</label><input id="cAchat" type="number" inputmode="decimal" step="any" value="4500"></div>
+        <div><label for="cLiv">Livraison locale (livreur, par colis)</label><input id="cLiv" type="number" inputmode="decimal" step="any" value="1500"></div>
+        <div><label for="cRetour">Frais de retour d'un colis refusé</label><input id="cRetour" type="number" inputmode="decimal" step="any" value="1500"></div>
+        <div><label for="cRefus">Colis refusés ou non récupérés (%)</label><input id="cRefus" type="number" inputmode="decimal" step="any" value="20"></div>
+        <div><label for="cTva">TVA (%), 0 si pas de TVA</label><input id="cTva" type="number" inputmode="decimal" step="any" value="0"></div>
+        <div><label for="cFrais">Frais du prestataire de paiement (%)</label><input id="cFrais" type="number" inputmode="decimal" step="any" value="0"></div>
+        <div><label for="cRetrait">Frais de retrait Mobile Money (%)</label><input id="cRetrait" type="number" inputmode="decimal" step="any" value="0"></div>
+        <div><label for="cBudget">Budget de test pub</label><input id="cBudget" type="number" inputmode="decimal" step="any" value="25000"></div>
       </div>
+      <p class="aide" style="margin:12px 0 0">Les montants sont des exemples : remplace-les par les tiens. Les frais de paiement et de retrait changent selon l'opérateur, vérifie-les chez le tien.</p>
       <div class="verdict" id="verdict"></div>
       <div class="tuiles">
-        <div class="tuile t1"><span>Marge avant pub</span><b id="rMarge">–</b><small id="rPct"> </small></div>
-        <div class="tuile"><span>Pub max par vente</span><b id="rCpa">–</b><small>au-delà, tu perds de l'argent</small></div>
-        <div class="tuile"><span>ROAS minimum</span><b id="rRoas">–</b><small>calculé sur le prix TTC</small></div>
-        <div class="tuile"><span>Pour amortir ton test</span><b id="rVentes">–</b><small>à marge actuelle</small></div>
+        <div class="tuile t1"><span>Marge attendue par commande</span><b id="rAttendue">–</b><small id="rRefusTxt"> </small></div>
+        <div class="tuile"><span>Marge par colis livré</span><b id="rMarge">–</b><small id="rPct"> </small></div>
+        <div class="tuile"><span>Pub max par commande</span><b id="rCpa">–</b><small>au-delà, tu perds de l'argent</small></div>
+        <div class="tuile"><span>ROAS minimum</span><b id="rRoas">–</b><small>calculé sur le prix de vente</small></div>
+        <div class="tuile"><span>Pour amortir ton test</span><b id="rVentes">–</b><small>commandes nécessaires</small></div>
       </div>
-      <p class="aide" style="margin:16px 0 0">Estimation simple : elle ne prend pas en compte les retours, les remboursements ni ton régime fiscal. Vérifie avec ton comptable pour la TVA.</p>
+      <p class="aide" style="margin:16px 0 0">Estimation simple : elle ne remplace pas l'avis d'un comptable pour la TVA et les taxes de ton pays.</p>
     </div>
   </section>
 
@@ -217,6 +297,8 @@
     </div>
   </section>
 </main>
+
+<div id="impression" hidden></div>
 
 <div class="voile" id="acces" hidden>
   <div class="panneau modale" role="dialog" aria-labelledby="titreAcces">
@@ -276,45 +358,64 @@
     document.querySelectorAll(".vue").forEach((v) => (v.hidden = v.id !== "vue-" + nom));
     document.querySelectorAll("#onglets button").forEach((b) => b.classList.toggle("actif", b.dataset.vue === nom));
     if (nom === "histo") afficherHistorique();
+    if (nom === "wa" && !$("waProduit").value) $("waProduit").value = $("produit").value;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   document.querySelectorAll("#onglets button").forEach((b) => b.addEventListener("click", () => voir(b.dataset.vue)));
 
-  function afficherFiche(texte) {
-    const zone = $("cartesFiche"); zone.textContent = "";
-    const morceaux = texte.split(/^(?:#+\s*|\*\*)?(FICHE PRODUIT|3 ANGLES PUBLICITAIRES|TEXTES DE PUB|À VÉRIFIER AVEC TON FOURNISSEUR|POURQUOI CES CHOIX)(?:\*\*)?\s*:?\s*$/gm);
+  const TITRES_FICHE = ["FICHE PRODUIT", "3 ANGLES PUBLICITAIRES", "TEXTES DE PUB", "À VÉRIFIER AVEC TON FOURNISSEUR", "POURQUOI CES CHOIX"];
+  const TITRES_SCRIPT = ["ACCROCHE", "SCÈNES", "FIN", "AMBIANCE", "VISUELS À PRÉPARER"];
+  const TITRES_VARIANTES = ["VARIANTE \\d"];
+  const TITRES_WA = ["VERSION \\d"];
+  const joliTitre = (t) => (t ? t.charAt(0) + t.slice(1).toLowerCase() : "Résultat");
+
+  function decouperTexte(texte, titres) {
+    const re = new RegExp("^(?:#+\\s*|\\*\\*)?((?:" + titres.join("|") + ")(?:\\s*\\([^)]*\\))?)(?:\\*\\*)?\\s*:?\\s*$", "gm");
+    const morceaux = texte.split(re);
     const blocs = [];
     if (morceaux[0].trim()) blocs.push(["", morceaux[0].trim()]);
     for (let k = 1; k < morceaux.length; k += 2) blocs.push([morceaux[k], (morceaux[k + 1] || "").trim()]);
     if (!blocs.length) blocs.push(["", texte.trim()]);
-    blocs.forEach(([titre, corps], k) => {
+    return blocs;
+  }
+
+  function afficherCartes(texte, idZone, titres, options = {}) {
+    const zone = $(idZone); zone.textContent = "";
+    decouperTexte(texte, titres).forEach(([titre, corps]) => {
       const bloc = document.createElement("article");
-      bloc.className = "bloc-res c" + (k % 5) + (titre.startsWith("À VÉRIFIER") ? " alerte" : "");
+      bloc.className = "bloc-res" + (titre.startsWith("À VÉRIFIER") ? " alerte" : "");
       const tete = document.createElement("div"); tete.className = "tete";
-      const h = document.createElement("h3");
-      h.textContent = (titre ? titre.charAt(0) + titre.slice(1).toLowerCase() : "Résultat");
+      const h = document.createElement("h3"); h.textContent = joliTitre(titre);
+      const outils = document.createElement("div"); outils.className = "outils";
+      if (options.whatsapp) {
+        const a = document.createElement("a"); a.className = "secondaire-lien"; a.textContent = "Ouvrir dans WhatsApp";
+        a.target = "_blank"; a.rel = "noopener"; a.href = "https://wa.me/?text=" + encodeURIComponent(corps);
+        outils.append(a);
+      }
       const b = document.createElement("button"); b.className = "secondaire"; b.textContent = "Copier";
       b.onclick = async () => { await navigator.clipboard.writeText(corps); b.textContent = "Copié ✓"; setTimeout(() => (b.textContent = "Copier"), 1500); };
-      tete.append(h, b);
+      outils.append(b); tete.append(h, outils);
       const contenu = document.createElement("div"); contenu.className = "corps"; contenu.textContent = corps;
       bloc.append(tete, contenu); zone.append(bloc);
     });
   }
+  const afficherFiche = (texte) => afficherCartes(texte, "cartesFiche", TITRES_FICHE);
+  const afficherScript = (texte) => afficherCartes(texte, "cartesScript", TITRES_SCRIPT);
 
   $("go").addEventListener("click", async () => {
     const produit = $("produit").value.trim();
-    $("erreur1").hidden = true; $("resultat").hidden = true; $("resultatVideo").hidden = true;
+    $("erreur1").hidden = true; $("resultat").hidden = true; $("resultatVideo").hidden = true; $("cartesVar").textContent = "";
     if (produit.length < 3) {
       $("erreur1").textContent = "Décris ton produit en une ou deux phrases avant de lancer la génération.";
       $("erreur1").hidden = false; return;
     }
-    contexte = { produit, ton: $("ton").value, plateforme: $("plateforme").value, pays: $("pays").value.trim() || "France" };
+    contexte = { produit, ton: $("ton").value, plateforme: $("plateforme").value, pays: $("pays").value.trim() || "Afrique francophone", devise: $("devise").value, paiement: $("paiement").value, commande: $("commande").value };
     $("go").disabled = true;
     const stop = chargement("statut1", ["Trois idées se mettent au travail…", "Un arbitre compare les propositions…", "Les accroches sont peaufinées…", "On retire tout ce qui n'est pas vérifiable…"]);
     try {
       contexte.fiche = (await appeler("/api/generate", contexte)).resultat;
       contexte.id = Date.now();
-      enregistrer({ id: contexte.id, produit, ton: contexte.ton, plateforme: contexte.plateforme, pays: contexte.pays, fiche: contexte.fiche });
+      enregistrer({ id: contexte.id, produit, ton: contexte.ton, plateforme: contexte.plateforme, pays: contexte.pays, devise: contexte.devise, paiement: contexte.paiement, commande: contexte.commande, fiche: contexte.fiche });
       $("texte1").textContent = contexte.fiche; afficherFiche(contexte.fiche);
       $("resultat").hidden = false; etapes(2);
       $("resultat").scrollIntoView({ behavior: "smooth" });
@@ -327,8 +428,8 @@
     $("goVideo").disabled = true;
     const stop = chargement("statut2", ["Le réalisateur écrit les scènes…", "Les textes d'écran sont choisis…", "Le plan de tournage prend forme…"]);
     try {
-      const data = await appeler("/api/video", { ...contexte, angle: $("angle").value, duree: $("duree").value });
-      $("texte2").textContent = data.resultat;
+      const data = await appeler("/api/video", { ...contexte, angle: $("angle").value, duree: $("duree").value, style: $("styleVideo").value });
+      $("texte2").textContent = data.resultat; afficherScript(data.resultat);
       $("textesEcran").value = (data.textes || []).join("\n");
       if (contexte.id) enregistrer({ id: contexte.id, script: { angle: $("angle").value, duree: $("duree").value, texte: data.resultat, textes: data.textes || [] } });
       $("resultatVideo").hidden = false; etapes(3);
@@ -351,13 +452,15 @@
 
   function rouvrir(e) {
     $("produit").value = e.produit; $("ton").value = e.ton; $("plateforme").value = e.plateforme; $("pays").value = e.pays;
-    contexte = { id: e.id, produit: e.produit, ton: e.ton, plateforme: e.plateforme, pays: e.pays, fiche: e.fiche };
+    if (e.devise) $("devise").value = e.devise; if (e.paiement) $("paiement").value = e.paiement; if (e.commande) $("commande").value = e.commande;
+    $("cartesVar").textContent = "";
+    contexte = { id: e.id, produit: e.produit, ton: e.ton, plateforme: e.plateforme, pays: e.pays, devise: e.devise, paiement: e.paiement, commande: e.commande, fiche: e.fiche };
     $("erreur1").hidden = true; $("erreur2").hidden = true; $("erreur3").hidden = true;
     $("texte1").textContent = e.fiche; afficherFiche(e.fiche); $("resultat").hidden = false; etapes(e.script ? 3 : 2); voir("creer");
     $("resultatVideo").hidden = true; $("resultatMontage").hidden = true;
     if (e.script) {
       $("angle").value = e.script.angle; $("duree").value = e.script.duree;
-      $("texte2").textContent = e.script.texte;
+      $("texte2").textContent = e.script.texte; afficherScript(e.script.texte);
       $("textesEcran").value = (e.script.textes || []).join("\n");
       $("resultatVideo").hidden = false;
     }
@@ -571,31 +674,150 @@
   });
 
   // ---------- Calculateur de rentabilité (sans IA) ----------
-  const euro = (v) => (isFinite(v) ? v.toLocaleString("fr-FR", { style: "currency", currency: "EUR" }) : "–");
+  const EXEMPLES = {
+    XOF: { prix: 15000, achat: 4500, liv: 1500, retour: 1500, budget: 25000, tva: 0 },
+    XAF: { prix: 15000, achat: 4500, liv: 1500, retour: 1500, budget: 25000, tva: 0 },
+    MAD: { prix: 250, achat: 70, liv: 30, retour: 30, budget: 300, tva: 0 },
+    NGN: { prix: 25000, achat: 7000, liv: 3000, retour: 3000, budget: 30000, tva: 0 },
+    GHS: { prix: 300, achat: 90, liv: 30, retour: 30, budget: 400, tva: 0 },
+    EUR: { prix: 29.9, achat: 9, liv: 3, retour: 3, budget: 50, tva: 20 },
+    USD: { prix: 29.9, achat: 9, liv: 3, retour: 3, budget: 50, tva: 0 }
+  };
+  const MODES = { livraison: { refus: 20, frais: 0, retrait: 0 }, ligne: { refus: 3, frais: 2.5, retrait: 1 } };
+  const sansDecimales = ["XOF", "XAF"];
+  const montant = (v) => {
+    if (!isFinite(v)) return "–";
+    const dev = $("cDevise").value, dec = sansDecimales.includes(dev) ? 0 : 2;
+    return new Intl.NumberFormat("fr-FR", { style: "currency", currency: dev, minimumFractionDigits: dec, maximumFractionDigits: dec }).format(v);
+  };
   function calculer() {
     const n = (id) => parseFloat(String($(id).value).replace(",", ".")) || 0;
-    const ttc = n("cPrix"), achat = n("cAchat"), liv = n("cLiv"), tva = n("cTva"), pct = n("cFrais"), fixe = n("cFixe"), budget = n("cBudget");
+    const ttc = n("cPrix"), achat = n("cAchat"), liv = n("cLiv"), retour = n("cRetour"), tva = n("cTva"), budget = n("cBudget");
+    const refus = Math.min(100, Math.max(0, n("cRefus"))) / 100;
     const ht = ttc / (1 + tva / 100);
-    const frais = (ttc * pct) / 100 + (ttc > 0 ? fixe : 0);
-    const marge = ht - achat - liv - frais;
-    const pctMarge = ht > 0 ? (marge / ht) * 100 : 0;
-    $("rMarge").textContent = euro(marge);
-    $("rPct").textContent = ht > 0 ? Math.round(pctMarge) + " % du prix HT" : " ";
-    $("rCpa").textContent = euro(Math.max(0, marge));
-    $("rRoas").textContent = marge > 0 ? (ttc / marge).toFixed(2).replace(".", ",") : "–";
-    const ventes = marge > 0 ? Math.ceil(budget / marge) : NaN;
-    $("rVentes").textContent = isFinite(ventes) ? ventes + (ventes > 1 ? " ventes" : " vente") : "–";
-    const v = $("verdict");
-    let k = 0, msg = "";
-    if (ttc <= 0) { k = 0; msg = "Entre tes chiffres pour voir la magie opérer "; }
-    else if (marge <= 0) { k = 1; msg = "Tu perds de l'argent sur chaque vente, même avant la pub."; }
-    else if (pctMarge < 15) { k = 2; msg = "Marge serrée : la pub risque de manger tout ton bénéfice."; }
-    else if (pctMarge < 30) { k = 3; msg = "Marge correcte : à tester avec un petit budget."; }
-    else { k = 4; msg = "Belle marge : tu as de la place pour la pub !"; }
-    v.className = "verdict v" + k; v.textContent = msg;
+    const fraisPaiement = (ttc * (n("cFrais") + n("cRetrait"))) / 100;
+    const margeLivree = ht - achat - liv - fraisPaiement;
+    const attendue = (1 - refus) * margeLivree - refus * (liv + retour);
+    const pctAtt = ht > 0 ? (attendue / ht) * 100 : 0;
+    $("rMarge").textContent = montant(margeLivree);
+    $("rPct").textContent = ht > 0 ? Math.round((margeLivree / ht) * 100) + " % du prix HT" : " ";
+    $("rAttendue").textContent = montant(attendue);
+    $("rRefusTxt").textContent = refus > 0 ? "après " + Math.round(refus * 100) + " % de colis refusés" : " ";
+    $("rCpa").textContent = montant(Math.max(0, attendue));
+    $("rRoas").textContent = attendue > 0 ? (ttc / attendue).toFixed(2).replace(".", ",") : "–";
+    const commandes = attendue > 0 ? Math.ceil(budget / attendue) : NaN;
+    $("rVentes").textContent = isFinite(commandes) ? commandes + (commandes > 1 ? " commandes" : " commande") : "–";
+    let k, msg;
+    if (ttc <= 0) { k = 0; msg = "Entre tes chiffres pour voir ta marge."; }
+    else if (attendue <= 0) { k = 1; msg = "Tu perds de l'argent : avec les refus, chaque commande coûte plus qu'elle ne rapporte, même avant la pub."; }
+    else if (pctAtt < 15) { k = 2; msg = "Marge serrée : la pub risque de manger tout ton bénéfice."; }
+    else if (pctAtt < 30) { k = 3; msg = "Marge correcte : à tester avec un petit budget."; }
+    else { k = 4; msg = "Belle marge : tu as de la place pour la pub."; }
+    $("verdict").className = "verdict v" + k; $("verdict").textContent = msg;
   }
+  function remplir(valeurs) { Object.entries(valeurs).forEach(([id, v]) => ($(id).value = v)); }
+  function exempleDevise() {
+    const e = EXEMPLES[$("cDevise").value];
+    remplir({ cPrix: e.prix, cAchat: e.achat, cLiv: e.liv, cRetour: e.retour, cBudget: e.budget, cTva: e.tva });
+    calculer();
+  }
+  function exempleMode() {
+    const m = MODES[$("cMode").value];
+    remplir({ cRefus: m.refus, cFrais: m.frais, cRetrait: m.retrait });
+    calculer();
+  }
+  $("cDevise").addEventListener("change", exempleDevise);
+  $("cMode").addEventListener("change", exempleMode);
   document.querySelectorAll("#vue-calcul input").forEach((i) => i.addEventListener("input", calculer));
-  calculer();
+  exempleDevise(); exempleMode();
+
+  function resumeCalcul() {
+    return [["Marge attendue par commande", "rAttendue"], ["Marge par colis livré", "rMarge"], ["Pub max par commande", "rCpa"], ["ROAS minimum", "rRoas"], ["Pour amortir le test", "rVentes"]]
+      .map(([nom, id]) => nom + " : " + $(id).textContent).join("\n") + "\n" + $("verdict").textContent;
+  }
+
+  // ---------- Exports : PDF et Notion ----------
+  function exporterPDF() {
+    if (!contexte.fiche) return;
+    const zone = $("impression"); zone.textContent = "";
+    const titre = document.createElement("h1"); titre.textContent = "WILDEE – " + (contexte.produit || "Projet").slice(0, 80);
+    zone.append(titre);
+    const section = (nom, texte) => {
+      if (!texte || !texte.trim()) return;
+      const h = document.createElement("h2"); h.textContent = nom;
+      const c = document.createElement("div"); c.className = "corps"; c.textContent = texte.trim();
+      zone.append(h, c);
+    };
+    section("Produit", contexte.produit + "\n\nTon : " + contexte.ton + " · Plateforme : " + contexte.plateforme + " · Pays : " + contexte.pays);
+    section("Fiche produit, angles et textes de pub", contexte.fiche);
+    section("Script vidéo", $("texte2").textContent);
+    section("Textes affichés dans la vidéo", $("textesEcran").value);
+    section("Rentabilité", resumeCalcul());
+    zone.hidden = false; window.print();
+  }
+  window.addEventListener("afterprint", () => { $("impression").hidden = true; });
+  $("btnPDF").addEventListener("click", exporterPDF);
+
+  async function copierNotion() {
+    if (!contexte.fiche) return;
+    const md = ["# " + (contexte.produit || "Projet WILDEE").slice(0, 80)];
+    decouperTexte(contexte.fiche, TITRES_FICHE).forEach(([t, c]) => md.push("## " + joliTitre(t), c));
+    const script = $("texte2").textContent;
+    if (script.trim()) {
+      md.push("## Script vidéo");
+      decouperTexte(script, TITRES_SCRIPT).forEach(([t, c]) => md.push("### " + joliTitre(t), c));
+    }
+    md.push("## Rentabilité", resumeCalcul().split("\n").map((l) => "- " + l).join("\n"));
+    await navigator.clipboard.writeText(md.join("\n\n"));
+    $("btnNotion").textContent = "Copié ✓"; setTimeout(() => ($("btnNotion").textContent = "Copier pour Notion"), 1500);
+  }
+  $("btnNotion").addEventListener("click", copierNotion);
+
+  // ---------- Variantes A/B ----------
+  $("goVar").addEventListener("click", async () => {
+    $("erreurVar").hidden = true; $("goVar").disabled = true;
+    const stop = chargement("statutVar", ["Plusieurs approches sont testées…", "Les accroches sont comparées…"]);
+    try {
+      const data = await appeler("/api/outils", { ...contexte, mode: "variantes", angle: $("angleVar").value });
+      afficherCartes(data.resultat, "cartesVar", TITRES_VARIANTES);
+    } catch (e) { montrerErreur("erreurVar", e); }
+    finally { $("goVar").disabled = false; stop(); }
+  });
+
+  // ---------- WhatsApp ----------
+  $("goWa").addEventListener("click", async () => {
+    const produit = $("waProduit").value.trim();
+    $("erreurWa").hidden = true;
+    if (produit.length < 3) { $("erreurWa").textContent = "Décris ton produit avant de lancer la génération."; $("erreurWa").hidden = false; return; }
+    $("goWa").disabled = true;
+    const stop = chargement("statutWa", ["Les messages s'écrivent…", "On garde un ton naturel…"]);
+    try {
+      const data = await appeler("/api/outils", {
+        mode: "whatsapp", produit, type: $("waType").value, boutique: $("waBoutique").value.trim(), lien: $("waLien").value.trim(),
+        infos: $("waInfos").value.trim(), ton: $("ton").value, pays: $("pays").value.trim() || "Afrique francophone", devise: $("devise").value, paiement: $("paiement").value
+      });
+      afficherCartes(data.resultat, "cartesWa", TITRES_WA, { whatsapp: true });
+    } catch (e) { montrerErreur("erreurWa", e); }
+    finally { $("goWa").disabled = false; stop(); }
+  });
+
+  $("goLien").addEventListener("click", () => {
+    const numero = $("waNumero").value.replace(/\D/g, "").replace(/^00/, "");
+    $("erreurLien").hidden = true;
+    if (numero.length < 8) {
+      $("erreurLien").textContent = "Entre ton numéro au format international, sans + ni espaces (par exemple 2250102030405).";
+      $("erreurLien").hidden = false; $("lienRes").hidden = true; return;
+    }
+    const nom = $("waNomProduit").value.trim() || $("waProduit").value.trim().split(/[.,\n]/)[0].slice(0, 60) || "ce produit";
+    const prix = $("waPrixTxt").value.trim();
+    const message = "Bonjour, je souhaite commander :\n*" + nom + "*\n" + (prix ? "Prix : " + prix + "\n" : "") + "Quantité : 1\n\nNom :\nVille / quartier :\nNuméro de téléphone :";
+    const lien = "https://wa.me/" + numero + "?text=" + encodeURIComponent(message);
+    $("lienTexte").value = lien; $("lienTest").href = lien; $("lienRes").hidden = false;
+  });
+  $("copierLien").addEventListener("click", async () => {
+    await navigator.clipboard.writeText($("lienTexte").value);
+    $("copierLien").textContent = "Copié ✓"; setTimeout(() => ($("copierLien").textContent = "Copier le lien"), 1500);
+  });
 
   document.querySelectorAll("[data-copier]").forEach((bouton) => {
     const libelle = bouton.textContent;
